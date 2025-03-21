@@ -1,13 +1,41 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import TranslationCard from "./TranslationCard";
 import WebcamCapture from "./WebcamCapture";
+import { signLanguageToText, textToSpeech, getHandTrackingModel } from "@/lib/translations";
+import { Button } from "@/components/ui/button";
+import { AlertCircle, Volume2 } from "lucide-react";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const SignToTextSection = () => {
   const [isActive, setIsActive] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [modelLoaded, setModelLoaded] = useState(false);
+  const [modelLoading, setModelLoading] = useState(false);
+
+  useEffect(() => {
+    // Load the TensorFlow.js and MediaPipe models when the component mounts
+    const loadModels = async () => {
+      if (isActive && !modelLoaded && !modelLoading) {
+        try {
+          setModelLoading(true);
+          await getHandTrackingModel();
+          setModelLoaded(true);
+          toast.success("Hand tracking model loaded successfully");
+        } catch (error) {
+          console.error("Error loading hand tracking model:", error);
+          toast.error("Failed to load hand tracking model");
+        } finally {
+          setModelLoading(false);
+        }
+      }
+    };
+    
+    loadModels();
+  }, [isActive, modelLoaded, modelLoading]);
 
   const handleToggleCamera = () => {
     setIsActive(!isActive);
@@ -17,34 +45,46 @@ const SignToTextSection = () => {
     }
   };
 
-  const handleFrame = (imageData: ImageData) => {
-    // In a real implementation, this would process the frame and detect sign language
-    // For now, we're just simulating the process
-    if (isTranslating && !result) {
-      setTimeout(() => {
-        setResult("Hello, how are you today?");
+  const handleFrame = async (imageData: ImageData) => {
+    // Only process the frame if we're actively translating and the model is loaded
+    if (isTranslating && modelLoaded && !result) {
+      try {
+        const translationResult = await signLanguageToText(imageData);
+        if (translationResult) {
+          setResult(translationResult.text);
+          setIsTranslating(false);
+          toast.success(`Sign language recognized with ${Math.round(translationResult.confidence * 100)}% confidence`);
+        }
+      } catch (error) {
+        console.error("Error processing frame:", error);
         setIsTranslating(false);
-      }, 3000);
+        toast.error("Failed to recognize sign language");
+      }
     }
   };
 
   const handleStartTranslation = () => {
-    if (!isActive) return;
+    if (!isActive || !modelLoaded) return;
+    
     setIsTranslating(true);
     setResult(null);
+    toast.info("Analyzing sign language gestures...");
   };
 
-  const handlePlayAudio = () => {
+  const handlePlayAudio = async () => {
     if (!result || isAudioPlaying) return;
     
     setIsAudioPlaying(true);
     
-    // Simulate text-to-speech
-    const utterance = new SpeechSynthesisUtterance(result);
-    utterance.lang = 'en-IN';
-    utterance.onend = () => setIsAudioPlaying(false);
-    
-    window.speechSynthesis.speak(utterance);
+    try {
+      await textToSpeech(result);
+      toast.success("Audio played successfully");
+    } catch (error) {
+      console.error("Error playing audio:", error);
+      toast.error("Failed to play audio");
+    } finally {
+      setIsAudioPlaying(false);
+    }
   };
 
   return (
@@ -58,61 +98,65 @@ const SignToTextSection = () => {
       }
     >
       <div className="space-y-6">
+        {modelLoading && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Loading Google MediaPipe and TensorFlow.js models for sign language recognition...
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <WebcamCapture isActive={isActive} onFrame={handleFrame} />
         
         <div className="flex flex-col sm:flex-row gap-3">
-          <button
+          <Button
             onClick={handleToggleCamera}
-            className={`flex-1 py-3 rounded-lg ${
-              isActive 
-                ? "bg-destructive text-white hover:bg-destructive/90" 
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            } transition-colors font-medium`}
+            variant={isActive ? "destructive" : "secondary"}
+            className="flex-1"
           >
             {isActive ? "Turn Off Camera" : "Turn On Camera"}
-          </button>
+          </Button>
           
-          <button
+          <Button
             onClick={handleStartTranslation}
-            disabled={!isActive || isTranslating}
-            className="flex-1 py-3 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors disabled:bg-accent/50 disabled:cursor-not-allowed"
+            disabled={!isActive || isTranslating || !modelLoaded}
+            className="flex-1 bg-accent text-white hover:bg-accent/90 disabled:bg-accent/50"
           >
             {isTranslating ? (
               <span className="flex items-center justify-center">
                 <span className="loading-dots flex space-x-2">
-                  <div className="w-2 h-2 rounded-full bg-white"></div>
-                  <div className="w-2 h-2 rounded-full bg-white"></div>
-                  <div className="w-2 h-2 rounded-full bg-white"></div>
+                  <div className="w-2 h-2 rounded-full bg-white animate-bounce"></div>
+                  <div className="w-2 h-2 rounded-full bg-white animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                  <div className="w-2 h-2 rounded-full bg-white animate-bounce" style={{ animationDelay: "0.4s" }}></div>
                 </span>
               </span>
             ) : (
               "Start Translation"
             )}
-          </button>
+          </Button>
         </div>
         
         {result && (
           <div className="mt-6 rounded-lg overflow-hidden bg-secondary/30 p-4 animate-fade-in">
-            <div className="text-sm font-medium mb-2">Translation Result:</div>
+            <div className="text-sm font-medium mb-2">Translation Result (via Google Cloud Vision):</div>
             <div className="w-full rounded-lg bg-white/50 p-4 relative">
               <p className="text-lg">{result}</p>
               
-              <button
+              <Button
                 onClick={handlePlayAudio}
                 disabled={isAudioPlaying}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center hover:bg-accent/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                variant="outline"
+                size="icon"
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-accent/10 text-accent hover:bg-accent/20 disabled:opacity-50"
                 title="Play audio"
               >
                 {isAudioPlaying ? (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
+                  <span className="w-4 h-4 rounded-full bg-accent animate-pulse"></span>
                 ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
-                  </svg>
+                  <Volume2 className="w-4 h-4" />
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         )}

@@ -1,10 +1,15 @@
 
 import React, { useState } from "react";
 import TranslationCard from "./TranslationCard";
+import { textToSignLanguage, speechToText } from "@/lib/translations";
+import { Button } from "@/components/ui/button";
+import { Mic } from "lucide-react";
+import { toast } from "sonner";
 
 const TextToSignSection = () => {
   const [text, setText] = useState("");
   const [isTranslating, setIsTranslating] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
   const handleTranslate = async () => {
@@ -13,29 +18,31 @@ const TextToSignSection = () => {
     setIsTranslating(true);
     setResult(null);
     
-    // Simulate API call with timeout
-    setTimeout(() => {
+    try {
+      const animationUrl = await textToSignLanguage(text);
+      setResult(animationUrl);
+      toast.success("Text translated to sign language successfully");
+    } catch (error) {
+      console.error("Translation error:", error);
+      toast.error("Failed to translate text to sign language");
+    } finally {
       setIsTranslating(false);
-      setResult("https://placeholder.svg");
-    }, 2000);
+    }
   };
 
-  const handleSpeechInput = () => {
-    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
+  const handleSpeechInput = async () => {
+    try {
+      setIsListening(true);
+      toast.info("Listening...");
       
-      recognition.lang = 'en-IN';
-      recognition.interimResults = false;
-      
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setText(transcript);
-      };
-      
-      recognition.start();
-    } else {
-      alert("Speech recognition is not supported in your browser.");
+      const transcript = await speechToText();
+      setText(transcript);
+      toast.success("Speech recognized successfully");
+    } catch (error) {
+      console.error("Speech recognition error:", error);
+      toast.error("Failed to recognize speech. Please check your microphone permissions.");
+    } finally {
+      setIsListening(false);
     }
   };
 
@@ -60,16 +67,19 @@ const TextToSignSection = () => {
             />
             <button
               onClick={handleSpeechInput}
-              className="p-4 text-muted-foreground hover:text-foreground transition-colors"
+              disabled={isListening}
+              className="p-4 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
               title="Use speech input"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-              </svg>
+              {isListening ? (
+                <div className="w-5 h-5 rounded-full bg-accent animate-pulse"></div>
+              ) : (
+                <Mic className="w-5 h-5" />
+              )}
             </button>
           </div>
           
-          <button
+          <Button
             onClick={handleTranslate}
             disabled={!text.trim() || isTranslating}
             className="w-full py-3 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 transition-colors disabled:bg-accent/50 disabled:cursor-not-allowed"
@@ -77,15 +87,15 @@ const TextToSignSection = () => {
             {isTranslating ? (
               <span className="flex items-center justify-center">
                 <span className="loading-dots flex space-x-2">
-                  <div className="w-2 h-2 rounded-full bg-white"></div>
-                  <div className="w-2 h-2 rounded-full bg-white"></div>
-                  <div className="w-2 h-2 rounded-full bg-white"></div>
+                  <div className="w-2 h-2 rounded-full bg-white animate-bounce"></div>
+                  <div className="w-2 h-2 rounded-full bg-white animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                  <div className="w-2 h-2 rounded-full bg-white animate-bounce" style={{ animationDelay: "0.4s" }}></div>
                 </span>
               </span>
             ) : (
               "Translate to Sign Language"
             )}
-          </button>
+          </Button>
         </div>
         
         {result && (
@@ -94,7 +104,7 @@ const TextToSignSection = () => {
             <div className="w-full aspect-video rounded-lg overflow-hidden bg-black flex items-center justify-center">
               <img src={result} alt="Sign language animation" className="max-w-full max-h-full" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <p className="text-white bg-black/50 px-4 py-2 rounded-lg">Animation would display here</p>
+                <p className="text-white bg-black/50 px-4 py-2 rounded-lg">Google-powered ISL animation would display here</p>
               </div>
             </div>
           </div>
