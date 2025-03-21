@@ -9,7 +9,102 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      saved_phrases: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          phrase: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          phrase: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          phrase?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      translation_history: {
+        Row: {
+          confidence_score: number | null
+          created_at: string
+          id: string
+          input_text: string | null
+          input_type: string
+          metadata: Json | null
+          recognized_text: string | null
+          translated_sign_url: string | null
+          user_id: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          input_text?: string | null
+          input_type: string
+          metadata?: Json | null
+          recognized_text?: string | null
+          translated_sign_url?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          input_text?: string | null
+          input_type?: string
+          metadata?: Json | null
+          recognized_text?: string | null
+          translated_sign_url?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          notifications_enabled: boolean | null
+          preferred_language: string | null
+          text_size: string | null
+          theme: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notifications_enabled?: boolean | null
+          preferred_language?: string | null
+          text_size?: string | null
+          theme?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notifications_enabled?: boolean | null
+          preferred_language?: string | null
+          text_size?: string | null
+          theme?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

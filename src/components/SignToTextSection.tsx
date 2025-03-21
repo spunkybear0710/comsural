@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
 
 const SignToTextSection = () => {
   const [isActive, setIsActive] = useState(false);
@@ -52,6 +53,20 @@ const SignToTextSection = () => {
         const translationResult = await signLanguageToText(imageData);
         if (translationResult) {
           setResult(translationResult.text);
+          
+          // Save translation to Supabase
+          const { error } = await supabase
+            .from('translation_history')
+            .insert({
+              input_type: 'sign_to_text',
+              recognized_text: translationResult.text,
+              confidence_score: Math.round(translationResult.confidence * 100),
+            });
+            
+          if (error) {
+            console.error("Error saving translation:", error);
+          }
+          
           setIsTranslating(false);
           toast.success(`Sign language recognized with ${Math.round(translationResult.confidence * 100)}% confidence`);
         }

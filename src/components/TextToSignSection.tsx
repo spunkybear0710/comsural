@@ -5,6 +5,7 @@ import { textToSignLanguage, speechToText } from "@/lib/translations";
 import { Button } from "@/components/ui/button";
 import { Mic } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const TextToSignSection = () => {
   const [text, setText] = useState("");
@@ -21,6 +22,20 @@ const TextToSignSection = () => {
     try {
       const animationUrl = await textToSignLanguage(text);
       setResult(animationUrl);
+      
+      // Save translation to Supabase
+      const { error } = await supabase
+        .from('translation_history')
+        .insert({
+          input_text: text,
+          translated_sign_url: animationUrl,
+          input_type: 'text_to_sign',
+        });
+      
+      if (error) {
+        console.error("Error saving translation:", error);
+      }
+      
       toast.success("Text translated to sign language successfully");
     } catch (error) {
       console.error("Translation error:", error);
